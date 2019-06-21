@@ -32,6 +32,7 @@
 #define LED_PIN 2 // The blue on-board LED of the ESP8266 custom AMS board
 #define LED_ACTIVE_HIGH 0
 #define AP_BUTTON_PIN 0
+#define TEMP_SENSOR_PIN 5 // Temperature sensor connected to GPIO5
 #else
 #define LED_PIN LED_BUILTIN
 #define LED_ACTIVE_HIGH 1
@@ -39,7 +40,9 @@
 #endif
 
 #if HAS_DALLAS_TEMP_SENSOR
-#define TEMP_SENSOR_PIN 5 // Temperature sensor connected to GPIO5
+#ifndef TEMP_SENSOR_PIN
+#define TEMP_SENSOR_PIN 26
+#endif
 
 OneWire oneWire(TEMP_SENSOR_PIN);
 DallasTemperature tempSensor(&oneWire);
@@ -49,7 +52,7 @@ DallasTemperature tempSensor(&oneWire);
 HanConfigAp ap;
 
 // WiFi client and MQTT client
-WiFiClient *client;
+WiFiClient client;
 MQTTClient mqtt(384);
 
 // Object used for debugging
@@ -87,12 +90,12 @@ void setup()
 	if (!ap.isActivated)
 	{
 		setupWiFi();
+
 		// Configure uart for AMS data
 		Serial.begin(2400, SERIAL_8E1);
 		while (!Serial);
 
 		hanReader.setup(&Serial, debugger);
-
 		// Compensate for the known Kaifa bug
 		hanReader.compensateFor09HeaderBug = (ap.config.meterType == 1);
 	}
@@ -106,6 +109,8 @@ void loop()
 	{
 		// Turn off the LED
 		led_off();
+
+		wifi_loop();
 
 		// allow the MQTT client some resources
 		mqtt.loop();
@@ -157,24 +162,12 @@ void setupWiFi()
 
 	// Connect to WiFi
 	WiFi.mode(WIFI_STA);
-	WiFi.begin(ap.config.ssid, ap.config.ssidPassword);
 
-	// Wait for WiFi connection
-	if (debugger) debugger->print("\nWaiting for WiFi to connect...");
-	while (WiFi.status() != WL_CONNECTED) {
-		if (debugger) debugger->print(".");
-		delay(500);
-	}
-	if (debugger) debugger->println(" connected");
+	wifi_loop();
 
-	client = new WiFiClient();
-	mqtt.begin(ap.config.mqtt, *client);
-
-	// Direct incoming MQTT messages
-	if (ap.config.mqttSubscribeTopic != 0 && strlen(ap.config.mqttSubscribeTopic) > 0) {
-		mqtt.subscribe(ap.config.mqttSubscribeTopic);
-		mqtt.onMessage(mqttMessageReceived);
-	}
+	mqtt.begin(ap.config.mqtt, client);
+	mqtt.onMessage(mqttMessageReceived);
+	MQTT_connect();
 
 	// Notify everyone we're here!
 	sendMqttData("Connected!");
@@ -251,10 +244,13 @@ void readHanPort()
 }
 
 
-// Function to connect and reconnect as necessary to the MQTT server.
-// Should be called in the loop function and it will take care if connecting.
-void MQTT_connect()
+void wifi_loop()
 {
+	if (WiFi.status() == WL_CONNECTED)
+	{
+		return;
+	}
+
 	// Connect to WiFi access point.
 	if (debugger)
 	{
@@ -264,18 +260,15 @@ void MQTT_connect()
 		debugger->println(ap.config.ssid);
 	}
 
-	if (WiFi.status() != WL_CONNECTED)
-	{
-		// Make one first attempt at connect, this seems to considerably speed up the first connection
-		WiFi.disconnect();
-		WiFi.begin(ap.config.ssid, ap.config.ssidPassword);
-		delay(1000);
-	}
+	// Make one first attempt at connect, this seems to considerably speed up the first connection
+	WiFi.disconnect();
+	WiFi.begin(ap.config.ssid, ap.config.ssidPassword);
+	delay(1000);
 
-	// Wait for the WiFi connection to complete
+	// Loop (forever...), waiting for the WiFi connection to complete
 	long vTimeout = millis() + WIFI_CONNECTION_TIMEOUT;
 	while (WiFi.status() != WL_CONNECTED) {
-		delay(50);
+		delay(100);
 		if (debugger) debugger->print(".");
 
 		// If we timed out, disconnect and try again
@@ -298,11 +291,18 @@ void MQTT_connect()
 		debugger->println("WiFi connected");
 		debugger->println("IP address: ");
 		debugger->println(WiFi.localIP());
-		debugger->print("\nconnecting to MQTT: ");
-		debugger->print(ap.config.mqtt);
-		debugger->print(", port: ");
-		debugger->print(ap.config.mqttPort);
-		debugger->println();
+	}
+}
+
+
+// Function to connect and reconnect as necessary to the MQTT server.
+// Should be called in the loop function and it will take care if connecting.
+void MQTT_connect()
+{
+	if (debugger)
+	{
+		debugger->print("Connecting to ");
+		debugger->println(ap.config.mqtt);
 	}
 
 	// Wait for the MQTT connection to complete
@@ -311,7 +311,7 @@ void MQTT_connect()
 		if ((ap.config.mqttUser == 0 && mqtt.connect(ap.config.mqttClientID)) ||
 			(ap.config.mqttUser != 0 && mqtt.connect(ap.config.mqttClientID, ap.config.mqttUser, ap.config.mqttPass)))
 		{
-			if (debugger) debugger->println("\nSuccessfully connected to MQTT!");
+			if (debugger) debugger->println("Successfully connected to MQTT!");
 
 			// Subscribe to the chosen MQTT topic, if set in configuration
 			if (ap.config.mqttSubscribeTopic != 0 && strlen(ap.config.mqttSubscribeTopic) > 0)
@@ -322,17 +322,10 @@ void MQTT_connect()
 		}
 		else
 		{
-			if (debugger)
-			{
-				debugger->print(".");
-				debugger->print("failed, ");
-				debugger->println(" trying again in 5 seconds");
-			}
+			if (debugger) debugger->println("MQTT connect failed, trying again in 5 seconds");
 
 			// Wait 2 seconds before retrying
 			mqtt.disconnect();
-
-			delay(2000);
 		}
 
 		// Allow some resources for the WiFi connection
@@ -349,7 +342,7 @@ void sendMqttData(String data)
 		return;
 
 	// Make sure we're connected
-	if (!client->connected() || !mqtt.connected()) {
+	if (!client.connected() || !mqtt.connected()) {
 		MQTT_connect();
 	}
 
@@ -369,3 +362,4 @@ void sendMqttData(String data)
 	if (debugger) debugger->print("sendMqttData: ");
 	if (debugger) debugger->println(data);
 }
+
