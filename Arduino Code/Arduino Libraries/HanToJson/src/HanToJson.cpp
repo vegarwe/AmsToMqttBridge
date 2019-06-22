@@ -86,12 +86,12 @@ static void hanToJsonAidon3phase(int listSize, JsonObject& data, HanReader& hanR
         data["type"]    = hanReader.getString(          (int)Aidon_List3Phase::MeterType);
         data["P"]       = hanReader.getInt(             (int)Aidon_List3Phase::ActiveImportPower);
         data["Q"]       = hanReader.getInt(             (int)Aidon_List3Phase::ReactiveExportPower);
-        data["I1"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::CurrentL1)) / 10;
-        data["I2"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::CurrentL2)) / 10;
-        data["I3"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::CurrentL3)) / 10;
-        data["U1"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::VoltageL1)) / 10;
-        data["U2"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::VoltageL2)) / 10;
-        data["U3"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::VoltageL3)) / 10;
+        data["I1"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::CurrentL1));
+        data["I2"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::CurrentL2));
+        data["I3"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::CurrentL3));
+        data["U1"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::VoltageL1));
+        data["U2"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::VoltageL2));
+        data["U3"]      = ((double) hanReader.getInt(   (int)Aidon_List3Phase::VoltageL3));
     }
 
     if (listSize >= (int)Aidon::List3PhaseShort)
@@ -103,7 +103,6 @@ static void hanToJsonAidon3phase(int listSize, JsonObject& data, HanReader& hanR
     }
 
 	// TODO Aidon::List3PhaseLong
-	// TODO: Do not divide Aidon values by 10!
 }
 
 static void hanToJsonAidon1phase(int listSize, JsonObject& data, HanReader& hanReader, Stream *debugger)
@@ -115,8 +114,8 @@ static void hanToJsonAidon1phase(int listSize, JsonObject& data, HanReader& hanR
         data["type"]    = hanReader.getString(          (int)Aidon_List1Phase::MeterType);
         data["P"]       = hanReader.getInt(             (int)Aidon_List1Phase::ActiveImportPower);
         data["Q"]       = hanReader.getInt(             (int)Aidon_List1Phase::ReactiveExportPower);
-        data["I1"]      = ((double) hanReader.getInt(   (int)Aidon_List1Phase::CurrentL1)) / 10;
-        data["U1"]      = ((double) hanReader.getInt(   (int)Aidon_List1Phase::VoltageL1)) / 10;
+        data["I1"]      = ((double) hanReader.getInt(   (int)Aidon_List1Phase::CurrentL1));
+        data["U1"]      = ((double) hanReader.getInt(   (int)Aidon_List1Phase::VoltageL1));
     }
 
 }

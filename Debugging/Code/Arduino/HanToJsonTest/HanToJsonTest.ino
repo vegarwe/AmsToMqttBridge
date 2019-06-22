@@ -83,7 +83,7 @@ byte aidon_samples[] =
 	0x23, 0xe0, 0xc4, 0x7e
 };
 String aidon_expect[] = {
-	String("{\"t\":0,\"data\":{\"lv\":\"AIDON_V0001\",\"id\":\"7359992890941742\",\"type\":\"6515\",\"P\":1362,\"Q\":0,\"I1\":9.3,\"U1\":250}}")
+	String("{\"t\":0,\"data\":{\"lv\":\"AIDON_V0001\",\"id\":\"7359992890941742\",\"type\":\"6515\",\"P\":1362,\"Q\":0,\"I1\":93,\"U1\":2500}}")
 };
 
 byte kamstrup_samples[] =
@@ -275,9 +275,8 @@ void loop() {
 		case 3: // Kamstrup
 			return loopKamstrup();
 		default:
-			debugger->println("Done");
+			debugger->println("Done, all tests passed");
 			while (true) ;
 			break;
 	}
 }
-
