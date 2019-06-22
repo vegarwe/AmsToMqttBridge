@@ -25,6 +25,7 @@
 #include "HanConfigAp.h"
 #include "HanReader.h"
 #include "HanToJson.h"
+#include "OtaWebServer.h"
 
 #define WIFI_CONNECTION_TIMEOUT 30000;
 
@@ -44,28 +45,29 @@
 #define TEMP_SENSOR_PIN 26
 #endif
 
-OneWire oneWire(TEMP_SENSOR_PIN);
-DallasTemperature tempSensor(&oneWire);
+static OneWire oneWire(TEMP_SENSOR_PIN);
+static DallasTemperature tempSensor(&oneWire);
 #endif
 
 // Object used to boot as Access Point
-HanConfigAp ap;
+static HanConfigAp ap;
 
 // WiFi client and MQTT client
-WiFiClient client;
-MQTTClient mqtt(384);
+static WiFiClient client;
+static MQTTClient mqtt(384);
 
 // Object used for debugging
-HardwareSerial* debugger = NULL;
+static HardwareSerial* debugger = NULL;
 
 // The HAN Port reader, used to read serial data and decode DLMS
-HanReader hanReader;
+static HanReader hanReader;
+
 
 // the setup function runs once when you press reset or power the board
 void setup()
 {
 	// Uncomment to debug over the same port as used for HAN communication
-	//debugger = &Serial;
+	//debugger = &Serial1;
 
 	if (debugger) {
 		// Setup serial port for debugging
@@ -91,6 +93,8 @@ void setup()
 	{
 		setupWiFi();
 
+		OtaWebServerSetup(debugger);
+
 		// Configure uart for AMS data
 		Serial.begin(2400, SERIAL_8E1);
 		while (!Serial);
@@ -111,6 +115,8 @@ void loop()
 		led_off();
 
 		wifi_loop();
+
+		OtaWebServerLoop();
 
 		// allow the MQTT client some resources
 		mqtt.loop();
@@ -362,4 +368,3 @@ void sendMqttData(String data)
 	if (debugger) debugger->print("sendMqttData: ");
 	if (debugger) debugger->println(data);
 }
-
