@@ -1,9 +1,9 @@
 #ifndef _SELFSERVICEWEBSERVER_H
 #define _SELFSERVICEWEBSERVER_H
 
-#include <HardwareSerial.h>
+#include <Stream.h>
 
-void SelfServiceWebServerSetup(HardwareSerial* debugger_in);
+void SelfServiceWebServerSetup(Stream* debugger_in);
 void SelfServiceWebServerLoop();
 void SelfServiceWebServerActivePower(int32_t timestamp, int32_t p);
 

@@ -142,7 +142,7 @@ static const char* serverIndex =
 
 
 static WebServer server(80);
-static HardwareSerial* debugger = NULL;
+static Stream* debugger = NULL;
 
 
 typedef struct {
@@ -208,7 +208,7 @@ void downSample(int32_t timestamp, int32_t value)
 }
 
 
-void SelfServiceWebServerSetup(HardwareSerial* debugger_in) {
+void SelfServiceWebServerSetup(Stream* debugger_in) {
     debugger = debugger_in;
 
     /*return index page which is stored in serverIndex */
