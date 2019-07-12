@@ -93,7 +93,7 @@ void setup()
 	{
 		setupWiFi();
 
-		SelfServiceWebServerSetup(debugger);
+		SelfServiceWebServerSetup(&ap.config, debugger);
 
 		// Configure uart for AMS data
 		Serial.begin(2400, SERIAL_8E1);

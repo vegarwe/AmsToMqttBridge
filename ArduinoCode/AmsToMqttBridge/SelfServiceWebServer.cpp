@@ -3,9 +3,9 @@
 #include <stdint.h>
 
 #include "ArduinoJson.h"
-#include <ArduinoOTA.h>
-#include <WebServer.h>
-#include <Update.h>
+#include "ArduinoOTA.h"
+#include "WebServer.h"
+#include "Update.h"
 
 
 /* Login page */
@@ -143,6 +143,7 @@ static const char* serverIndex =
 
 static WebServer server(80);
 static Stream* debugger = NULL;
+static configuration* config = NULL;
 
 
 typedef struct {
@@ -208,7 +209,8 @@ void downSample(int32_t timestamp, int32_t value)
 }
 
 
-void SelfServiceWebServerSetup(Stream* debugger_in) {
+void SelfServiceWebServerSetup(configuration* config_in, Stream* debugger_in) {
+    config = config_in;
     debugger = debugger_in;
 
     /*return index page which is stored in serverIndex */
@@ -226,6 +228,7 @@ void SelfServiceWebServerSetup(Stream* debugger_in) {
         []() {
             server.sendHeader("Connection", "close");
             server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+            config->save();
             ESP.restart();
         },
         []() {
