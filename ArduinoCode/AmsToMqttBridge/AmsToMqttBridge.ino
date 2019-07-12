@@ -315,11 +315,17 @@ void MQTT_connect()
 		debugger->println(ap.config.mqtt);
 	}
 
+	String mqttClientID(ap.config.mqttClientID);
+	if (mqttClientID.length() == 0)
+	{
+		mqttClientID = WiFi.macAddress(); // Needs to be unique, so this a good approach
+	}
+
 	// Wait for the MQTT connection to complete
 	while (!mqtt.connected()) {
 		// Connect to a unsecure or secure MQTT server
-		if ((ap.config.mqttUser == 0 && mqtt.connect(ap.config.mqttClientID)) ||
-			(ap.config.mqttUser != 0 && mqtt.connect(ap.config.mqttClientID, ap.config.mqttUser, ap.config.mqttPass)))
+		if ((ap.config.mqttUser == 0 && mqtt.connect(mqttClientID.c_str())) ||
+			(ap.config.mqttUser != 0 && mqtt.connect(mqttClientID.c_str(), ap.config.mqttUser, ap.config.mqttPass)))
 		{
 			if (debugger) debugger->println("Successfully connected to MQTT!");
 
