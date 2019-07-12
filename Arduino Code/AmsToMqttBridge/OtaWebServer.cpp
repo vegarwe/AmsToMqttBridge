@@ -178,118 +178,121 @@ void downSample(int32_t timestamp, int32_t value)
 
     // Always add first sample
     if (last_added.timestamp == 0) {
-      last_added = sample;
-      previous = sample;
-      addSample(sample);
-      return;
+        last_added = sample;
+        previous = sample;
+        addSample(sample);
+        return;
     }
 
     // Add sample if value changes 'enough'
     if (abs(last_added.value - sample.value) > 100)
     {
-      // Also add previous, to get a correct graph
-      if (previous.timestamp != 0) {
-        addSample(previous);
-      }
-      addSample(sample);
-      last_added = sample;
-      previous.timestamp = 0;
+        // Also add previous, to get a correct graph
+        if (previous.timestamp != 0) {
+            addSample(previous);
+        }
+        addSample(sample);
+        last_added = sample;
+        previous.timestamp = 0;
     } // Add sample if 'enough' time has passed
     else if (abs(last_added.timestamp - sample.timestamp) > 15*60)
     {
-      addSample(sample);
-      last_added = sample;
-      previous.timestamp = 0;
+        addSample(sample);
+        last_added = sample;
+        previous.timestamp = 0;
     }
     else
     {
-      previous = sample;
+        previous = sample;
     }
 }
 
 
 void OtaWebServerSetup(HardwareSerial* debugger_in) {
-  debugger = debugger_in;
+    debugger = debugger_in;
 
-  /*return index page which is stored in serverIndex */
-  server.on("/", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", loginIndex);
-  });
-  server.on("/serverIndex", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", serverIndex);
-  });
-  /*handling uploading firmware file */
-  server.on("/update", HTTP_POST, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-    ESP.restart();
-  }, []() {
-    HTTPUpload& upload = server.upload();
-    if (upload.status == UPLOAD_FILE_START) {
-      if (debugger) debugger->printf("Update: %s\n", upload.filename.c_str());
-      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
-        if (debugger) Update.printError(*debugger);
-      }
-    } else if (upload.status == UPLOAD_FILE_WRITE) {
-      /* flashing firmware to ESP*/
-      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-        if (debugger) Update.printError(*debugger);
-      }
-    } else if (upload.status == UPLOAD_FILE_END) {
-      if (Update.end(true)) { //true to set the size to the current progress
-        if (debugger) debugger->printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-      } else {
-        if (debugger) Update.printError(*debugger);
-      }
-    }
-  });
+    /*return index page which is stored in serverIndex */
+    server.on("/", HTTP_GET, []() {
+            server.sendHeader("Connection", "close");
+            server.send(200, "text/html", loginIndex);
+    });
 
-  server.on("/powerData", HTTP_GET, []() {
-    DynamicJsonDocument json(30000); // TODO: Need to find aproriate size
-    JsonArray array = json.to<JsonArray>();
+    server.on("/serverIndex", HTTP_GET, []() {
+            server.sendHeader("Connection", "close");
+            server.send(200, "text/html", serverIndex);
+    });
+    /*handling uploading firmware file */
+    server.on("/update", HTTP_POST,
+        []() {
+            server.sendHeader("Connection", "close");
+            server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+            ESP.restart();
+        },
+        []() {
+            HTTPUpload& upload = server.upload();
+            if (upload.status == UPLOAD_FILE_START) {
+                if (debugger) debugger->printf("Update: %s\n", upload.filename.c_str());
+                if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+                    if (debugger) Update.printError(*debugger);
+                }
+            } else if (upload.status == UPLOAD_FILE_WRITE) {
+                /* flashing firmware to ESP*/
+                if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+                    if (debugger) Update.printError(*debugger);
+                }
+            } else if (upload.status == UPLOAD_FILE_END) {
+                if (Update.end(true)) { //true to set the size to the current progress
+                    if (debugger) debugger->printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+                } else {
+                    if (debugger) Update.printError(*debugger);
+                }
+            }
+    });
 
-    for (int i = 1; i < DOWNSAMPLED_NUM - 1; i++)
-    {
-      int index = (downsampled_start + i - 1) % DOWNSAMPLED_NUM;
-      if (downsampled[index].timestamp == 0) break;
-      JsonObject sample = array.createNestedObject();
-      sample["timestamp"] = downsampled[index].timestamp;
-      sample["value"] = downsampled[index].value;
-    }
+    server.on("/powerData", HTTP_GET, []() {
+            DynamicJsonDocument json(30000); // TODO: Need to find aproriate size
+            JsonArray array = json.to<JsonArray>();
 
-    String msg;
-    serializeJson(json, msg);
+            for (int i = 1; i < DOWNSAMPLED_NUM - 1; i++)
+            {
+                int index = (downsampled_start + i - 1) % DOWNSAMPLED_NUM;
+                if (downsampled[index].timestamp == 0) break;
+                JsonObject sample = array.createNestedObject();
+                sample["timestamp"] = downsampled[index].timestamp;
+                sample["value"] = downsampled[index].value;
+            }
 
-    server.sendHeader("Connection", "close");
-    server.send(200, "application/json", msg);
+            String msg;
+            serializeJson(json, msg);
 
-    if (debugger)
-    {
-      debugger->print(" downsampled_start ");
-      debugger->print(downsampled_start);
-      debugger->print(" downsampled_end ");
-      debugger->print(downsampled_end);
-      debugger->print(" msg.size() ");
-      debugger->print(msg.length());
-      debugger->print(" json.memoryUsage() ");
-      debugger->print(json.memoryUsage());
-      debugger->print(" json.size() ");
-      debugger->println(json.size());
-    }
-  });
+            server.sendHeader("Connection", "close");
+            server.send(200, "application/json", msg);
 
-  server.begin();
+            if (debugger)
+            {
+                debugger->print(" downsampled_start ");
+                debugger->print(downsampled_start);
+                debugger->print(" downsampled_end ");
+                debugger->print(downsampled_end);
+                debugger->print(" msg.size() ");
+                debugger->print(msg.length());
+                debugger->print(" json.memoryUsage() ");
+                debugger->print(json.memoryUsage());
+                debugger->print(" json.size() ");
+                debugger->println(json.size());
+            }
+    });
+
+    server.begin();
 }
 
 
 void OtaWebServerLoop() {
-  server.handleClient();
+    server.handleClient();
 }
 
 
 void OtaWebServerActivePower(int32_t timestamp, int32_t p)
 {
-  return downSample(timestamp, p);
+    return downSample(timestamp, p);
 }
