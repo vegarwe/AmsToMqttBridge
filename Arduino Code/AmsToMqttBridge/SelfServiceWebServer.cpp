@@ -1,4 +1,4 @@
-#include "OtaWebServer.h"
+#include "SelfServiceWebServer.h"
 
 #include <stdint.h>
 
@@ -208,7 +208,7 @@ void downSample(int32_t timestamp, int32_t value)
 }
 
 
-void OtaWebServerSetup(HardwareSerial* debugger_in) {
+void SelfServiceWebServerSetup(HardwareSerial* debugger_in) {
     debugger = debugger_in;
 
     /*return index page which is stored in serverIndex */
@@ -287,12 +287,12 @@ void OtaWebServerSetup(HardwareSerial* debugger_in) {
 }
 
 
-void OtaWebServerLoop() {
+void SelfServiceWebServerLoop() {
     server.handleClient();
 }
 
 
-void OtaWebServerActivePower(int32_t timestamp, int32_t p)
+void SelfServiceWebServerActivePower(int32_t timestamp, int32_t p)
 {
     return downSample(timestamp, p);
 }

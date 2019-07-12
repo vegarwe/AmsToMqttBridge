@@ -25,7 +25,7 @@
 #include "HanConfigAp.h"
 #include "HanReader.h"
 #include "HanToJson.h"
-#include "OtaWebServer.h"
+#include "SelfServiceWebServer.h"
 
 #define WIFI_CONNECTION_TIMEOUT 30000;
 
@@ -93,7 +93,7 @@ void setup()
 	{
 		setupWiFi();
 
-		OtaWebServerSetup(debugger);
+		SelfServiceWebServerSetup(debugger);
 
 		// Configure uart for AMS data
 		Serial.begin(2400, SERIAL_8E1);
@@ -116,7 +116,7 @@ void loop()
 
 		wifi_loop();
 
-		OtaWebServerLoop();
+		SelfServiceWebServerLoop();
 
 		// allow the MQTT client some resources
 		mqtt.loop();
@@ -227,7 +227,7 @@ void readHanPort()
 		hanToJson(data, ap.config.meterType, hanReader);
 
 		if (json.containsKey("data") && json["data"].containsKey("P")) {
-			OtaWebServerActivePower(time, json["data"]["P"].as<int>());
+			SelfServiceWebServerActivePower(time, json["data"]["P"].as<int>());
 		}
 
 		// Write the json to the debug port
