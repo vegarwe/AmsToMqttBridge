@@ -226,6 +226,10 @@ void readHanPort()
 
 		hanToJson(data, ap.config.meterType, hanReader);
 
+		if (json.containsKey("data") && json["data"].containsKey("P")) {
+			OtaWebServerActivePower(time, json["data"]["P"].as<int>());
+		}
+
 		// Write the json to the debug port
 		if (debugger) {
 			debugger->print("Sending data to MQTT: ");
