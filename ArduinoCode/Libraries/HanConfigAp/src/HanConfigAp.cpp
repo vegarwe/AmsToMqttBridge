@@ -173,17 +173,21 @@ void HanConfigAp::handleSave() {
 
 size_t HanConfigAp::print(const char* text)
 {
-	if (debugger) debugger->print(text);
+	if (debugger) return debugger->print(text);
+	return 0;
 }
 size_t HanConfigAp::println(const char* text)
 {
-	if (debugger) debugger->println(text);
+	if (debugger) return debugger->println(text);
+	return 0;
 }
 size_t HanConfigAp::print(const Printable& data)
 {
-	if (debugger) debugger->print(data);
+	if (debugger) return debugger->print(data);
+	return 0;
 }
 size_t HanConfigAp::println(const Printable& data)
 {
-	if (debugger) debugger->println(data);
+	if (debugger) return debugger->println(data);
+	return 0;
 }
