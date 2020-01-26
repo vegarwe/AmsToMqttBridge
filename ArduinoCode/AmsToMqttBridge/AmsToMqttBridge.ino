@@ -9,25 +9,17 @@
 #define IS_CUSTOM_AMS_BOARD 1			// Set to zero if using NodeMCU or board not designed by Roar Fredriksen
 
 #include <ArduinoJson.h>
-#include <MQTT.h>
 
 #if HAS_DALLAS_TEMP_SENSOR
 #include <DallasTemperature.h>
 #include <OneWire.h>
 #endif
 
-#if defined(ESP8266)
-#include <ESP8266WiFi.h>
-#elif defined(ESP32)
-#include <WiFi.h>
-#endif
-
+#include "wifi_mqtt.h"
 #include "HanConfigAp.h"
 #include "HanReader.h"
 #include "HanToJson.h"
 #include "SelfServiceWebServer.h"
-
-#define WIFI_CONNECTION_TIMEOUT 30000;
 
 #if IS_CUSTOM_AMS_BOARD
 #define LED_PIN 2 // The blue on-board LED of the ESP8266 custom AMS board
@@ -51,10 +43,6 @@ static DallasTemperature tempSensor(&oneWire);
 
 // Object used to boot as Access Point
 static HanConfigAp ap;
-
-// WiFi client and MQTT client
-static WiFiClient client;
-static MQTTClient mqtt(384);
 
 // Object used for debugging
 static HardwareSerial* debugger = NULL;
@@ -91,7 +79,7 @@ void setup()
 
 	if (!ap.isActivated)
 	{
-		setupWiFi();
+		wifi_mqtt_setup(&ap, debugger, mqttMessageReceived);
 
 		SelfServiceWebServerSetup(&ap.config, debugger);
 
@@ -111,24 +99,14 @@ void loop()
 	// Only do normal stuff if we're not booted as AP
 	if (!ap.loop())
 	{
-		// Turn off the LED
 		led_off();
 
-		wifi_loop();
+		bool connected = wifi_mqtt_loop();
 
 		SelfServiceWebServerLoop();
 
-		// allow the MQTT client some resources
-		mqtt.loop();
-		delay(10); // <- fixes some issues with WiFi stability
-
-		// Reconnect to WiFi and MQTT as needed
-		if (!mqtt.connected()) {
-			MQTT_connect();
-		}
-		else
+		if (connected)
 		{
-			// Read data from the HAN port
 			readHanPort();
 		}
 	}
@@ -160,24 +138,6 @@ void led_off()
 #endif
 }
 
-
-void setupWiFi()
-{
-	// Turn off AP
-	WiFi.enableAP(false);
-
-	// Connect to WiFi
-	WiFi.mode(WIFI_STA);
-
-	wifi_loop();
-
-	mqtt.begin(ap.config.mqtt, client);
-	mqtt.onMessage(mqttMessageReceived);
-	MQTT_connect();
-
-	// Notify everyone we're here!
-	sendMqttData("Connected!");
-}
 
 void mqttMessageReceived(String &topic, String &payload)
 {
@@ -211,6 +171,7 @@ void readHanPort()
 
 		// Any generic useful info here
 		json["id"] = WiFi.macAddress();
+		json["IP"] = WiFi.localIP().toString();
 		json["up"] = millis();
 		json["t"] = time;
 
@@ -244,8 +205,7 @@ void readHanPort()
 			String msg;
 			serializeJson(json, msg);
 
-			mqtt.publish(ap.config.mqttPublishTopic, msg.c_str());
-			mqtt.loop();
+			wifi_mqtt_publish(ap.config.mqttPublishTopic, msg.c_str());
 		}
 
 		// Flash LED off
@@ -253,128 +213,3 @@ void readHanPort()
 	}
 }
 
-
-void wifi_loop()
-{
-	if (WiFi.status() == WL_CONNECTED)
-	{
-		return;
-	}
-
-	// Connect to WiFi access point.
-	if (debugger)
-	{
-		debugger->println();
-		debugger->println();
-		debugger->print("Connecting to WiFi network ");
-		debugger->println(ap.config.ssid);
-	}
-
-	// Make one first attempt at connect, this seems to considerably speed up the first connection
-	WiFi.disconnect();
-	WiFi.begin(ap.config.ssid, ap.config.ssidPassword);
-	delay(1000);
-
-	// Loop (forever...), waiting for the WiFi connection to complete
-	long vTimeout = millis() + WIFI_CONNECTION_TIMEOUT;
-	while (WiFi.status() != WL_CONNECTED) {
-		delay(100);
-		if (debugger) debugger->print(".");
-
-		// If we timed out, disconnect and try again
-		if (vTimeout < millis())
-		{
-			if (debugger)
-			{
-				debugger->print("Timout during connect. WiFi status is: ");
-				debugger->println(WiFi.status());
-			}
-			WiFi.disconnect();
-			WiFi.begin(ap.config.ssid, ap.config.ssidPassword);
-			vTimeout = millis() + WIFI_CONNECTION_TIMEOUT;
-		}
-		yield();
-	}
-
-	if (debugger) {
-		debugger->println();
-		debugger->println("WiFi connected");
-		debugger->println("IP address: ");
-		debugger->println(WiFi.localIP());
-	}
-}
-
-
-// Function to connect and reconnect as necessary to the MQTT server.
-// Should be called in the loop function and it will take care if connecting.
-void MQTT_connect()
-{
-	if (debugger)
-	{
-		debugger->print("Connecting to ");
-		debugger->println(ap.config.mqtt);
-	}
-
-	String mqttClientID(ap.config.mqttClientID);
-	if (mqttClientID.length() == 0)
-	{
-		mqttClientID = WiFi.macAddress(); // Needs to be unique, so this a good approach
-	}
-
-	// Wait for the MQTT connection to complete
-	while (!mqtt.connected()) {
-		// Connect to a unsecure or secure MQTT server
-		if ((ap.config.mqttUser == 0 && mqtt.connect(mqttClientID.c_str())) ||
-			(ap.config.mqttUser != 0 && mqtt.connect(mqttClientID.c_str(), ap.config.mqttUser, ap.config.mqttPass)))
-		{
-			if (debugger) debugger->println("Successfully connected to MQTT!");
-
-			// Subscribe to the chosen MQTT topic, if set in configuration
-			if (ap.config.mqttSubscribeTopic != 0 && strlen(ap.config.mqttSubscribeTopic) > 0)
-			{
-				mqtt.subscribe(ap.config.mqttSubscribeTopic);
-				if (debugger) debugger->printf("  Subscribing to [%s]\r\n", ap.config.mqttSubscribeTopic);
-			}
-		}
-		else
-		{
-			if (debugger) debugger->println("MQTT connect failed, trying again in 5 seconds");
-
-			// Wait 2 seconds before retrying
-			mqtt.disconnect();
-		}
-
-		// Allow some resources for the WiFi connection
-		yield();
-		delay(2000);
-	}
-}
-
-// Send a simple string embedded in json over MQTT
-void sendMqttData(String data)
-{
-	// Make sure we have configured a publish topic
-	if (ap.config.mqttPublishTopic == 0 || strlen(ap.config.mqttPublishTopic) == 0)
-		return;
-
-	// Make sure we're connected
-	if (!client.connected() || !mqtt.connected()) {
-		MQTT_connect();
-	}
-
-	// Build a json with the message in a "data" attribute
-	StaticJsonDocument<500> json;
-	json["id"] = WiFi.macAddress();
-	json["up"] = millis();
-	json["data"] = data;
-
-	// Stringify the json
-	String msg;
-	serializeJson(json, msg);
-
-	// Send the json over MQTT
-	mqtt.publish(ap.config.mqttPublishTopic, msg.c_str());
-
-	if (debugger) debugger->print("sendMqttData: ");
-	if (debugger) debugger->println(data);
-}
