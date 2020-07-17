@@ -13,7 +13,7 @@
 #include "config.h"
 
 #define WIFI_CONNECTION_TIMEOUT 30000;
-#define AWS_MAX_RECONNECT_TRIES 5
+#define MQTT_MAX_RECONNECT_TRIES 5
 
 const char certificate_pem_crt[] = {"-----BEGIN CERTIFICATE-----\n\
 -----END CERTIFICATE-----\n"};
@@ -136,11 +136,11 @@ void wifi_loop()
 }
 
 
-void connectToAWS()
+void connectMqtt()
 {
-    // Try to connect to AWS and count how many times we retried.
+    // Try to connect to MQTT and count how many times we retried.
     int retries = 0;
-    if (debugger) debugger->println("Connecting to AWS IOT");
+    if (debugger) debugger->println("Connecting to MQTT IOT");
 
     String mqttClientID(ap->config.mqttClientID);
     if (mqttClientID.length() == 0)
@@ -162,7 +162,7 @@ void connectToAWS()
         {
             mqtt.connect(mqttClientID.c_str());
         }
-    } while (!mqtt.connected() && retries < AWS_MAX_RECONNECT_TRIES);
+    } while (!mqtt.connected() && retries < MQTT_MAX_RECONNECT_TRIES);
 
     // Make sure that we did indeed successfully connect to the MQTT broker
     // If not we just end the function and wait for the next loop.
@@ -172,8 +172,7 @@ void connectToAWS()
         return;
     }
 
-    // If we land here, we have successfully connected to AWS!
-    // And we can subscribe to topics and send messages.
+    // Subscribe to topics and send messages.
     if (debugger) debugger->println();
     if (debugger) debugger->println("MQTT Connected");
 
@@ -206,7 +205,7 @@ void wifi_mqtt_setup(HanConfigAp* ap_config, HardwareSerial* dbg, MQTTClientCall
     // Setup MQTT
     mqtt.begin(ap->config.mqtt, ap->config.mqttPort, net);
     mqtt.onMessage(messageCb);
-    connectToAWS();
+    connectMqtt();
 }
 
 
@@ -218,14 +217,14 @@ bool wifi_mqtt_loop()
 
     // Reconnect to WiFi and MQTT as needed
     if (!mqtt.connected()) {
-        connectToAWS();
+        connectMqtt();
     }
 
     return mqtt.connected();
 }
 
 
-void wifi_mqtt_publish(String topic, String payload)
+bool wifi_mqtt_publish(String topic, String payload)
 {
-    mqtt.publish(topic, payload);
+    return mqtt.publish(topic, payload);
 }
