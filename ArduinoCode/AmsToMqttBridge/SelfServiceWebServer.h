@@ -4,7 +4,8 @@
 #include <Stream.h>
 #include "configuration.h"
 
-void SelfServiceWebServerSetup(configuration* config_in, Stream* debugger_in);
+// otaUser/otaPass: HTTP Basic auth for /serverIndex and /update.
+void SelfServiceWebServerSetup(configuration* config_in, Stream* debugger_in, const char* otaUser, const char* otaPass);
 void SelfServiceWebServerLoop();
 void SelfServiceWebServerActivePower(int32_t timestamp, int32_t p);
 

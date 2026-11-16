@@ -164,7 +164,7 @@ void configuration::print(Stream* debugger)
 	debugger->println("Configuration:");
 	debugger->println("-----------------------------------------------");
 	debugger->printf("ssid:                 %s\r\n", this->ssid);
-	debugger->printf("ssidPassword:         %s\r\n", this->ssidPassword);
+	debugger->printf("ssidPassword:         %s\r\n", (this->ssidPassword && *this->ssidPassword) ? "<set>" : "<empty>");
 	debugger->printf("meterType:            %i\r\n", this->meterType);
 	debugger->printf("mqtt:                 %s\r\n", this->mqtt);
 	debugger->printf("mqttPort:             %i\r\n", this->mqttPort);
@@ -176,7 +176,7 @@ void configuration::print(Stream* debugger)
 	{
 		debugger->printf("SECURE MQTT CONNECTION:\r\n");
 		debugger->printf("mqttUser:             %s\r\n", this->mqttUser);
-		debugger->printf("mqttPass:             %s\r\n", this->mqttPass);
+		debugger->printf("mqttPass:             %s\r\n", (this->mqttPass && *this->mqttPass) ? "<set>" : "<empty>");
 	}
 	debugger->println("-----------------------------------------------");
 }

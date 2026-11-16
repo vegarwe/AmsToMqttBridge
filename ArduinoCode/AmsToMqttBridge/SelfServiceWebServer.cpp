@@ -3,7 +3,6 @@
 #include <stdint.h>
 
 #include "ArduinoJson.h"
-#include "ArduinoOTA.h"
 #include "WebServer.h"
 #include "Update.h"
 
@@ -139,6 +138,12 @@ static const char* serverIndex =
 static WebServer server(80);
 static Stream* debugger = NULL;
 static configuration* config = NULL;
+static const char* otaUser = NULL;
+static const char* otaPass = NULL;
+// Set when an upload starts with valid credentials. The upload callback runs
+// before the request handler, so the check has to happen there, at
+// UPLOAD_FILE_START, or an unauthenticated body would already be in flash.
+static bool otaAuthorized = false;
 
 
 typedef struct {
@@ -204,9 +209,11 @@ void downSample(int32_t timestamp, int32_t value)
 }
 
 
-void SelfServiceWebServerSetup(configuration* config_in, Stream* debugger_in) {
+void SelfServiceWebServerSetup(configuration* config_in, Stream* debugger_in, const char* otaUser_in, const char* otaPass_in) {
     config = config_in;
     debugger = debugger_in;
+    otaUser = otaUser_in;
+    otaPass = otaPass_in;
 
     /*return index page which is stored in serverIndex */
     server.on("/", HTTP_GET, []() {
@@ -215,24 +222,39 @@ void SelfServiceWebServerSetup(configuration* config_in, Stream* debugger_in) {
     });
 
     server.on("/serverIndex", HTTP_GET, []() {
+            if (!server.authenticate(otaUser, otaPass)) return server.requestAuthentication();
             server.sendHeader("Connection", "close");
             server.send(200, "text/html", serverIndex);
     });
     /*handling uploading firmware file */
     server.on("/update", HTTP_POST,
         []() {
+            if (!otaAuthorized) return server.requestAuthentication();
+            otaAuthorized = false;
+
+            // Not config->save() any more: OTA never touches the EEPROM/NVS
+            // partition, and with USE_STATIC_CONFIG it would copy the WiFi and
+            // broker passwords into flash for no reason.
+            bool ok = !Update.hasError() && Update.isFinished();
             server.sendHeader("Connection", "close");
-            server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-            config->save();
+            server.send(ok ? 200 : 500, "text/plain", ok ? "OK" : "FAIL");
+            delay(100); // let the response leave before the restart
             ESP.restart();
         },
         []() {
             HTTPUpload& upload = server.upload();
             if (upload.status == UPLOAD_FILE_START) {
+                otaAuthorized = server.authenticate(otaUser, otaPass);
+                if (!otaAuthorized) {
+                    if (debugger) debugger->println("Update: rejected, bad credentials");
+                    return;
+                }
                 if (debugger) debugger->printf("Update: %s\n", upload.filename.c_str());
                 if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
                     if (debugger) Update.printError(*debugger);
                 }
+            } else if (!otaAuthorized) {
+                return;
             } else if (upload.status == UPLOAD_FILE_WRITE) {
                 /* flashing firmware to ESP*/
                 if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
@@ -244,6 +266,12 @@ void SelfServiceWebServerSetup(configuration* config_in, Stream* debugger_in) {
                 } else {
                     if (debugger) Update.printError(*debugger);
                 }
+            } else if (upload.status == UPLOAD_FILE_ABORTED) {
+                // Connection dropped mid-transfer. The boot partition is only
+                // switched by a successful Update.end(), so the running image
+                // stays; just release the half-written one.
+                Update.abort();
+                if (debugger) debugger->println("Update: aborted by client");
             }
     });
 

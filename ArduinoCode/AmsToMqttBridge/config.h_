@@ -1,0 +1,44 @@
+#ifndef _CONFIG_H
+#define _CONFIG_H
+
+// Template. Copy to config.h and fill in. config.h is gitignored because it
+// holds the WiFi, broker and OTA passwords in plaintext -- and they end up in
+// the firmware image too, so treat firmware.bin as a secret as well.
+
+// 1: use the values below. 0: original behaviour, boot as the "AMS2MQTT"
+// access point and configure from a browser, stored in EEPROM.
+#define USE_STATIC_CONFIG 1
+
+#define WIFI_SSID   "some-wifi-ssid"
+#define WIFI_PASS   "that-ssid-password"
+
+// 1 = Kaifa, 2 = Aidon, 3 = Kamstrup
+#define METER_TYPE  1
+
+#define MQTT_HOST   "mqtt.example.lan"
+// 1: TLS, broker verified against root_ca_pem below (typically port 8883).
+// 0: plain MQTT (typically port 1883); root_ca_pem is ignored.
+#define MQTT_TLS    1
+#define MQTT_PORT   8883
+// Preferably a dedicated broker user for this device, with an ACL limited to
+// the topics below. The image carries this password.
+#define MQTT_USER   "ams"
+#define MQTT_PASS   "a-password"
+// Device state (online/offline, firmware version) goes under
+// MQTT_ROOT/<MAC>/up/. The meter readings go to MQTT_PUBLISH_TOPIC.
+#define MQTT_ROOT           "ams"
+#define MQTT_PUBLISH_TOPIC  "AMSpub"
+
+// HTTP Basic auth for the firmware upload on http://<device>/update.
+// Plain HTTP on the LAN: this keeps out the casual, not a sniffer.
+#define OTA_USER    "ams"
+#define OTA_PASS    "another-password"
+
+// The CA certificate that signed your broker's certificate (only used with
+// MQTT_TLS 1). For a broker with a publicly trusted certificate (e.g. Let's
+// Encrypt), use that chain's root instead.
+static auto constexpr root_ca_pem = "-----BEGIN CERTIFICATE-----\n\
+...paste your CA certificate here, one line per row, each ending in \\n\\\n\
+-----END CERTIFICATE-----\n";
+
+#endif//_CONFIG_H
