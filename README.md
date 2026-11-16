@@ -5,6 +5,25 @@
 
  *Building this project will require some skills in ordering and assembling  electronic circuits as well as programming, and I have not included detailed instructions to take a beginner through the steps. I still hope some still find information here useful, maybe also for other projects.*
 
+## This fork: ESP32 Feather + off-the-shelf M-Bus board
+
+This copy runs on an **Adafruit HUZZAH32 ESP32 Feather** with a cheap
+**M-BUS to TTL (v1.06.2)** board instead of the custom PCB, publishes to a local
+MQTT broker. It is built with
+PlatformIO.
+
+**→ Hardware, wiring, toolchain setup, configuration and payload format:
+[ArduinoCode/README.md](./ArduinoCode/README.md)**
+
+Quick start:
+
+```bash
+cp ArduinoCode/AmsToMqttBridge/config.h_ ArduinoCode/AmsToMqttBridge/config.h   # then edit
+pio run -t upload && pio device monitor
+```
+
+The rest of this README describes the original project.
+
 ## The completed hardware
 ![The HAN Reader Hardware](./Images/HanReaderInEnclosure.PNG)
 
@@ -35,14 +54,14 @@ Quite some work was put into parse and guess how the data protocol was defined. 
 - [X] [Code to capture and analyze data from Arduino](./Debugging/Code/ESPDebugger)
 - [X] [Sample data from various meters](./Debugging/Samples)
 - [X] [Documentation on HAN / MBus / DLMS/COSEM](./Debugging/Documentation)
-- [X] [Code to parse DLMS data into a structure](./Arduino%20Code/Arduino%20Libraries/HanReader/src)
+- [X] [Code to parse DLMS data into a structure](./ArduinoCode/Libraries/HanReader/src)
 - [X] [Real schematics, including ESP8266](./PCB/KiCAD/HAN_ESP_TSS721#schematics)
 - [X] [PCB layout](./PCB/KiCAD/HAN_ESP_TSS721#pcb)
 - [X] [Component list](./PCB/KiCAD/HAN_ESP_TSS721#componenet-list)
-- [X] [Arduino library](./Arduino%20Code)
-- [X] [Complete Arduino sketch to read values and report to MQTT server](./Arduino%20Code/AmsToMqttBridge)
+- [X] [Arduino library](./ArduinoCode)
+- [X] [Complete Arduino sketch to read values and report to MQTT server](./ArduinoCode/AmsToMqttBridge)
 
-[The completed project](./Arduino%20Code/AmsToMqttBridge) also includes:
+[The completed project](./ArduinoCode/AmsToMqttBridge) also includes:
 
 - Boot as Access Point and web server to allow config from a web browser. This allows you to set SSID, password, MQTT server and port, as well as topics for publish and subscribe
 - On-board temperature sensor, also reported in json to MQTT
