@@ -26,7 +26,18 @@ topic read  ams/<MAC>/up/#
 - The read grant is only so the device user can be used to check its own
   output; the firmware subscribes to nothing.
 - Whatever consumes the readings (Home Assistant, a display, a logger) needs
-  `topic read AMSpub` on its own user.
+  `topic read AMSpub` on its own user. Home Assistant with
+  `ha-discovery.sh` also needs `topic read ams/<MAC>/up/#`, which carries the
+  entities' availability:
+
+  ```
+  user homeassistant
+  topic read AMSpub
+  topic read ams/<MAC>/up/#
+  ```
+
+  Without these HA creates every entity from the discovery configs and then
+  never receives a value, and the broker logs nothing about it.
 
 Reload with `systemctl reload mosquitto`.
 

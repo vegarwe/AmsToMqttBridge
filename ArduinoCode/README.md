@@ -17,6 +17,7 @@ ArduinoCode/
     └── HanConfigAp/          Access-point config portal + EEPROM storage (optional)
 ../deploy/
 ├── push-ota.sh               Build + flash over WiFi
+├── ha-discovery.sh           Home Assistant entities via MQTT discovery
 └── mosquitto-acl.md          Example broker user + ACL for the device
 ```
 
@@ -215,6 +216,39 @@ Which fields are present depends on the list the meter sent (Kaifa's 2-second
 list only has `P`). Values are the meter's raw integers; the scaling of current
 and voltage differs between meter vendors (e.g. Kaifa sends mA and 0.1 V), see
 the OBIS documents in [Debugging/Documentation](../Debugging/Documentation).
+
+### Home Assistant
+
+[`deploy/ha-discovery.sh`](../deploy/ha-discovery.sh) publishes retained MQTT
+discovery configs, so the entities show up under one *Power meter* device as
+soon as HA's MQTT integration is connected. Nothing to edit in HA, and no
+firmware change: the entities read `AMSpub` and `ams/<MAC>/up/` as they are.
+
+| Entity | From | Notes |
+| --- | --- | --- |
+| Power | `P` | W, every 2 s |
+| Current L1–L3, Voltage L1–L3 | `I*`, `U*` | A and V, every 10 s |
+| Energy import | `tPI` | kWh, `total_increasing`: use it in the Energy dashboard. Hourly |
+| Energy export, Reactive power | `tPO`, `Q` | disabled by default |
+| Firmware | `up/version` | diagnostic; partition, reset reason and IP as attributes |
+
+All of them go *unavailable* through the device's last will when the bridge
+drops off, and through `expire_after` when the bridge is up but the meter has
+stopped sending. `AMSpub` is not retained, so after an HA restart the energy
+sensor is unknown until the next hourly frame.
+
+```bash
+MQTT_HOST=... MQTT_CAFILE=ca.crt MQTT_USER=<admin> DEVICE_MAC=<MAC> \
+    deploy/ha-discovery.sh publish          # or: remove, show
+```
+
+Settings can also live in `deploy/ha-discovery.local.env` (gitignored); the
+script lists them. On an IT grid a Kaifa meter reports `U2 = 0` (it measures
+L1–L2 and L3–L2), so set `VOLTAGES="1 3"` there. The scaling in the script is
+Kaifa's; check it before using it with Aidon or Kamstrup.
+
+HA's broker user needs `read` on `AMSpub` and `ams/<MAC>/up/#`, see
+[mosquitto-acl.md](../deploy/mosquitto-acl.md).
 
 ### Web server (port 80)
 

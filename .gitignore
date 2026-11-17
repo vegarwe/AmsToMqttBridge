@@ -14,3 +14,4 @@ ArduinoCode/AmsToMqttBridge/config.h
 __pycache__/
 platformio_local*.ini
 *.local.md
+*.local.env
